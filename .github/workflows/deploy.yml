@@ -1,0 +1,69 @@
+name: CD - Deploy to AWS
+
+on:
+  push:
+    branches: ["main"]
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: express-app
+  CONTAINER_NAME: express-app
+  APP_PORT: 3000
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 3. Login to ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 4. Build & Push Docker Image
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: latest
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # 5. Deploy to EC2 ✅ (NOW CORRECTLY INSIDE steps)
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "Logging into ECR..."
+
+            aws ecr get-login-password --region ap-south-1 | \
+            docker login --username AWS --password-stdin 770880870725.dkr.ecr.ap-south-1.amazonaws.com
+
+            echo "Pulling latest image..."
+            docker pull 770880870725.dkr.ecr.ap-south-1.amazonaws.com/express-app:latest
+
+            echo "Stopping old container..."
+            docker stop express-app || true
+            docker rm express-app || true
+
+            echo "Running new container..."
+            docker run -d \
+              --name express-app \
+              -p 3000:3000 \
+              -e PORT=3000 \
+              770880870725.dkr.ecr.ap-south-1.amazonaws.com/express-app:latest
