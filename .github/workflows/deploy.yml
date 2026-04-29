@@ -41,7 +41,7 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      # 5. Deploy to EC2 ✅ (NOW CORRECTLY INSIDE steps)
+      # 5. Deploy to EC2
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -52,10 +52,10 @@ jobs:
             echo "Logging into ECR..."
 
             aws ecr get-login-password --region ap-south-1 | \
-            docker login --username AWS --password-stdin 770880870725.dkr.ecr.ap-south-1.amazonaws.com
+            docker login --username AWS --password-stdin 218260716362.dkr.ecr.ap-south-1.amazonaws.com
 
             echo "Pulling latest image..."
-            docker pull 770880870725.dkr.ecr.ap-south-1.amazonaws.com/express-app:latest
+            docker pull 218260716362.dkr.ecr.ap-south-1.amazonaws.com/express-app:latest
 
             echo "Stopping old container..."
             docker stop express-app || true
@@ -66,4 +66,4 @@ jobs:
               --name express-app \
               -p 3000:3000 \
               -e PORT=3000 \
-              770880870725.dkr.ecr.ap-south-1.amazonaws.com/express-app:latest
+              218260716362.dkr.ecr.ap-south-1.amazonaws.com/express-app:latest
